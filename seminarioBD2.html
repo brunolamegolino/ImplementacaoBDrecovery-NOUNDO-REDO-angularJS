@@ -1,0 +1,123 @@
+<html ng-app="BD2">
+<head>
+	<meta charset="UTF-8">
+	<title>NO UNDO/REDO</title>
+	<link rel="stylesheet" type="text/css" href="lib/bootstrap/bootstrap.css">
+	<style>
+		.jumbotron{
+			width: 700px;
+			margin-top: 20px;
+			margin-right: auto;
+			margin-left: auto;
+			text-align: center;
+			padding: 2%;
+		}
+	</style>
+	<script src="lib/angular/angular.js"></script>
+	<script>
+		angular.module("BD2", []);
+		angular.module("BD2").controller("BD2Ctrl", function($scope) {
+			$scope.app = "Implementação NO UNDO/REDO";
+			$scope.operacoes = [
+				{sigla: "s", nome: "Start"},
+				{sigla: "c", nome: "Commit"},
+				{sigla: "r", nome: "Read"},
+				{sigla: "w", nome: "Write"},
+				{sigla: "checkpoint", nome: "Checkpoint"}
+			];
+
+			$scope.listaRedo = [];
+			$scope.logs = "";
+			$scope.mostraResultado = false;
+			$scope.log = [];
+			$scope.confirmarOperacao = function(transacao) {
+				if(transacao.operacao=='w')
+					$scope.logs = $scope.logs+transacao.operacao+transacao.id+'('+transacao.read+','+transacao.write+') ';
+				else if(transacao.operacao=='r')
+					$scope.logs = $scope.logs+transacao.operacao+transacao.id+'('+transacao.read+') ';
+				else if(transacao.operacao=='checkpoint'){
+					$scope.logs = $scope.logs+transacao.operacao+'(';
+					transacao.id = $scope.check();
+					$scope.logs = $scope.logs+') ';
+				}else if(transacao.operacao=='c'){
+					$scope.listaRedo.push(transacao.id);
+					$scope.logs = $scope.logs+transacao.operacao+transacao.id+' ';
+				}else{
+					$scope.logs = $scope.logs+transacao.operacao+transacao.id+' ';
+				}
+
+				$scope.log.push(transacao);
+				delete $scope.transacao
+			};
+			$scope.crash = function() {
+				$scope.mostraResultado = true;
+				$scope.listaRedo;
+				$scope.logs = $scope.logs+'CRASH';
+			};
+			$scope.check = function() {
+				var indexUltCheck = 0;
+				$scope.log.forEach(function(elemento){
+					if(elemento.operacao=='checkpoint')
+						indexUltCheck = $scope.log.indexOf(elemento);	
+				});
+
+				var ultCheck = $scope.log.slice(indexUltCheck);
+
+				var tAtivas = [];
+
+				ultCheck.forEach(function(elemento){
+					if(elemento.operacao=="checkpoint"){
+						elemento.id.forEach(function(el){
+							tAtivas.push(el);
+						});
+					};
+					if(elemento.operacao=='c'){
+						tAtivas.splice(tAtivas.indexOf(elemento.id), 1);	
+						$scope.listaRedo.splice($scope.listaRedo.indexOf(elemento.id), 1);
+					};
+					if(elemento.operacao=='s'){
+						tAtivas.push(elemento.id);
+					};
+				});
+
+				tAtivas.forEach(function(el2){
+					$scope.logs = $scope.logs+'t'+el2;
+				});
+			return tAtivas;	
+			};
+
+			$scope.formInvalid = function(){
+					return false;
+			};
+		});
+	</script>
+</head>
+<body ng-controller="BD2Ctrl">
+	<div class="jumbotron">
+		<div ng-hide="mostraResultado">
+			<h4>{{app}}</h4>
+			<hr></hr>
+			
+			<select class="btn btn-info " ng-model="transacao.operacao" ng-options="operacao.sigla as operacao.nome for operacao in operacoes">
+				<option value="">Operação</option>
+			</select>
+			<br>
+			<br>
+
+			<input type="text" ng-hide="!transacao.operacao || transacao.operacao == 'checkpoint'" size=8 ng-model="transacao.id" placeholder="Transacao">
+			<input type="text" ng-show="transacao.operacao == 'r' || transacao.operacao == 'w'" size=8 ng-model="transacao.read" placeholder="Dado">
+			<input type="text" ng-show="transacao.operacao == 'w'" size=8 ng-model="transacao.write" placeholder="Valor">
+			<button class="btn" ng-click="confirmarOperacao(transacao)" ng-disabled="formInvalid()">Confirmar</button>
+			<br>
+			<br>
+
+			<p align="right"><button class="btn btn-danger" ng-click="crash()">crash</button></p>
+		</div>
+	<p ng-bind="logs"></p>
+		<div ng-show="mostraResultado">
+			<h4>Lista Redo</h4>
+			<h3 ng-repeat="thread in listaRedo">{{'T'+thread}}</h3>
+		</div>
+	</div>
+</body>
+</html>
